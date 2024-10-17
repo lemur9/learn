@@ -6,6 +6,7 @@ import router from "./router";
 
 import "@/styles/common.scss";
 import { lazyPlugin } from "./directives";
+import { xtxPlugin } from "./components";
 
 const app = createApp(App);
 
@@ -15,4 +16,4 @@ app.use(router);
 app.mount("#app");
 
 app.use(lazyPlugin);
-
+app.use(xtxPlugin);
