@@ -1,9 +1,12 @@
 <script setup>
-import { loginAPI } from '@/apis/user';
 import { ElMessage } from 'element-plus';
 // import 'element-plus/theme-chalk/el-message.css';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+
+import { useUserStore } from '@/stores/userStore';
+
+const userStore = useUserStore()
 
 const form = ref({
   account: 'heima282',
@@ -21,7 +24,7 @@ const rules = {
   ],
   agree: [
     {
-      validator: (rule, value, callback) => {
+      validator: async (rule, value, callback) => {
         if (value) {
           callback()
         } else {
@@ -34,11 +37,11 @@ const rules = {
 const router = useRouter()
 const formRef = ref(null)
 const doLogin = () => {
+  const { account, password } = form.value
   formRef.value.validate(async (valid) => {
     if (valid) {
-      const res = await loginAPI(form.value)
-      console.log(res);
-      
+      await userStore.getUserInfo({ account, password })
+
       ElMessage({ type: 'success', message: '登录成功' })
       router.replace({ path: '/' })
     }

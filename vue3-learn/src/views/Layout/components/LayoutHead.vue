@@ -1,8 +1,5 @@
 <script setup>
-import { useCategoryStore } from '@/stores/categoryStore';
-import HeaderCart from './HeaderCart.vue';
 
-const categoryStore = useCategoryStore()
 </script>
 
 <template>
@@ -15,7 +12,7 @@ const categoryStore = useCategoryStore()
         <li class="home">
           <RouterLink to="/">首页</RouterLink>
         </li>
-        <li class="home" v-for="res in categoryStore.categoryList" :key="res.id">
+        <li class="home" v-for="res in 2" :key="res.id">
           <RouterLink active-class="active" :to="`/category/${res.id}`">{{ res.name }}</RouterLink>
         </li>
       </ul>
@@ -24,14 +21,12 @@ const categoryStore = useCategoryStore()
         <input type="text" placeholder="搜一搜">
       </div>
       <!-- 头部购物车 -->
-      <HeaderCart />
 
     </div>
   </header>
 </template>
 
-
-<style scoped lang='scss'>
+<style scoped lang="scss">
 .app-header {
   background: #fff;
 
@@ -44,9 +39,9 @@ const categoryStore = useCategoryStore()
     width: 200px;
 
     a {
-      display: block;
-      height: 132px;
+      display: inline-block;
       width: 100%;
+      height: 132px;
       text-indent: -9999px;
       background: url('@/assets/images/logo.png') no-repeat center 18px / contain;
     }

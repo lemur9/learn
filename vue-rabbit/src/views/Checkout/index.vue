@@ -1,9 +1,68 @@
-# 路由配置和基础数据渲染
-## 1. 准备组件模版
-```vue
 <script setup>
-const checkInfo = {}  // 订单对象
-const curAddress = {}  // 地址对象
+import { createOrderAPI, getCheckoutInfoAPI } from '@/apis/checkout';
+import router from '@/router';
+import { useCartStore } from '@/stores/cartStore';
+import { ElMessage } from 'element-plus';
+import { onMounted, ref } from 'vue';
+
+const curAddress = ref({})
+const checkInfo = ref({})  // 订单对象
+
+const checkout = async () => {
+  const res = await getCheckoutInfoAPI()
+  checkInfo.value = res.result
+
+  const item = checkInfo.value.userAddresses.find(item => item.isDefault === 0)
+  curAddress.value = item
+}
+
+onMounted(() => {
+  checkout()
+})
+
+const toggleFlag = ref(false)
+const activeAddress = ref({})
+const switchAddress = (item) => {
+  activeAddress.value = item
+}
+
+const confirm = () => {
+  if (activeAddress.value.id) {
+    curAddress.value = activeAddress.value
+    close()
+  } else {
+    ElMessage.warning("请选择需要切换的收货地址")
+  }
+}
+
+const close = () => {
+  toggleFlag.value = false
+  activeAddress.value = {}
+}
+const cartStore = useCartStore()
+
+const createOrder = async () => {
+  const res = await createOrderAPI({
+    deliveryTimeType: 1,
+    payType: 1,
+    payChannel: 1,
+    buyerMessage: '',
+    goods: checkInfo.value.goods.map(item => {
+      return {
+        skuId: item.skuId,
+        count: item.count
+      }
+    }),
+    addressId: curAddress.value.id
+  });
+  const orderId = res.result.id
+  router.push({
+    path: '/pay', query: {
+      id: orderId,
+    }
+  })
+  cartStore.updateNewList()
+}
 
 </script>
 
@@ -99,12 +158,30 @@ const curAddress = {}  // 地址对象
         </div>
         <!-- 提交订单 -->
         <div class="submit">
-          <el-button type="primary" size="large" >提交订单</el-button>
+          <el-button type="primary" @click="createOrder" size="large">提交订单</el-button>
         </div>
       </div>
     </div>
   </div>
   <!-- 切换地址 -->
+  <el-dialog v-model="toggleFlag" title="切换收货地址" width="30%" center>
+    <div class="addressWrapper">
+      <div class="text item" :class="{ active: activeAddress.id === item.id }" @click="switchAddress(item)"
+        v-for="item in checkInfo.userAddresses" :key="item.id">
+        <ul>
+          <li><span>收<i />货<i />人：</span>{{ item.receiver }} </li>
+          <li><span>联系方式：</span>{{ item.contact }}</li>
+          <li><span>收货地址：</span>{{ item.fullLocation + item.address }}</li>
+        </ul>
+      </div>
+    </div>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="close">取消</el-button>
+        <el-button type="primary" @click="confirm">确定</el-button>
+      </span>
+    </template>
+  </el-dialog>
   <!-- 添加地址 -->
 </template>
 
@@ -321,257 +398,3 @@ const curAddress = {}  // 地址对象
   }
 }
 </style>
-```
-## 2. 配置路由
-## 3. 封装接口
-```javascript
-import request from '@/utils/request'
-/**
- * 获取结算信息
- */
-export const getCheckoutInfoAPI = () => {
-  return request({
-    url:'/member/order/pre'
-  })
-}
-```
-## 4. 渲染数据
-# 切换地址-打开弹框交互
-## 1. 准备弹框模版
-```html
-<el-dialog title="切换收货地址" width="30%" center>
-  <div class="addressWrapper">
-    <div class="text item" v-for="item in checkInfo.userAddresses"  :key="item.id">
-      <ul>
-      <li><span>收<i />货<i />人：</span>{{ item.receiver }} </li>
-      <li><span>联系方式：</span>{{ item.contact }}</li>
-      <li><span>收货地址：</span>{{ item.fullLocation + item.address }}</li>
-      </ul>
-    </div>
-  </div>
-  <template #footer>
-    <span class="dialog-footer">
-      <el-button>取消</el-button>
-      <el-button type="primary">确定</el-button>
-    </span>
-  </template>
-</el-dialog>
-```
-## 2. 控制弹框打开
-```vue
-const showDialog = ref(false)
-
-<el-button size="large" @click="showDialog = true">切换地址</el-button>
-
-<el-dialog v-model="showDialog" title="切换收货地址" width="30%" center>
-    <!-- 省略 -->
-</el-dialog>
-```
-# 切换地址-地址切换交互
-> 基础思想：记录当前点击项，通过动态class判断当前div是否有激活类名
-
-```vue
-<script setup>
-// 切换地址
-const activeAddress = ref({})
-const switchAddress = (item) => {
-  activeAddress.value = item
-}
-</script>
-
-<template>
-<div class="text item" 
-  :class="{ active: activeAddress.id === item.id }" 
-  @click="switchAddress(item)"
-  :key="item.id">
-  <!-- 省略... -->
-</div>
-</template>
-```
-# 创建订单生成订单ID
-## 1. 准备支付页组件并绑定路由
-```vue
-<script setup>
-const payInfo = {}
-</script>
-
-
-<template>
-  <div class="xtx-pay-page">
-    <div class="container">
-      <!-- 付款信息 -->
-      <div class="pay-info">
-        <span class="icon iconfont icon-queren2"></span>
-        <div class="tip">
-          <p>订单提交成功！请尽快完成支付。</p>
-          <p>支付还剩 <span>24分30秒</span>, 超时后将取消订单</p>
-        </div>
-        <div class="amount">
-          <span>应付总额：</span>
-          <span>¥{{ payInfo.payMoney?.toFixed(2) }}</span>
-        </div>
-      </div>
-      <!-- 付款方式 -->
-      <div class="pay-type">
-        <p class="head">选择以下支付方式付款</p>
-        <div class="item">
-          <p>支付平台</p>
-          <a class="btn wx" href="javascript:;"></a>
-          <a class="btn alipay" :href="payUrl"></a>
-        </div>
-        <div class="item">
-          <p>支付方式</p>
-          <a class="btn" href="javascript:;">招商银行</a>
-          <a class="btn" href="javascript:;">工商银行</a>
-          <a class="btn" href="javascript:;">建设银行</a>
-          <a class="btn" href="javascript:;">农业银行</a>
-          <a class="btn" href="javascript:;">交通银行</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<style scoped lang="scss">
-.xtx-pay-page {
-  margin-top: 20px;
-}
-
-.pay-info {
-
-  background: #fff;
-  display: flex;
-  align-items: center;
-  height: 240px;
-  padding: 0 80px;
-
-  .icon {
-    font-size: 80px;
-    color: #1dc779;
-  }
-
-  .tip {
-    padding-left: 10px;
-    flex: 1;
-
-    p {
-      &:first-child {
-        font-size: 20px;
-        margin-bottom: 5px;
-      }
-
-      &:last-child {
-        color: #999;
-        font-size: 16px;
-      }
-    }
-  }
-
-  .amount {
-    span {
-      &:first-child {
-        font-size: 16px;
-        color: #999;
-      }
-
-      &:last-child {
-        color: $priceColor;
-        font-size: 20px;
-      }
-    }
-  }
-}
-
-.pay-type {
-  margin-top: 20px;
-  background-color: #fff;
-  padding-bottom: 70px;
-
-  p {
-    line-height: 70px;
-    height: 70px;
-    padding-left: 30px;
-    font-size: 16px;
-
-    &.head {
-      border-bottom: 1px solid #f5f5f5;
-    }
-  }
-
-  .btn {
-    width: 150px;
-    height: 50px;
-    border: 1px solid #e4e4e4;
-    text-align: center;
-    line-height: 48px;
-    margin-left: 30px;
-    color: #666666;
-    display: inline-block;
-
-    &.active,
-    &:hover {
-      border-color: $xtxColor;
-    }
-
-    &.alipay {
-      background: url(https://cdn.cnbj1.fds.api.mi-img.com/mi-mall/7b6b02396368c9314528c0bbd85a2e06.png) no-repeat center / contain;
-    }
-
-    &.wx {
-      background: url(https://cdn.cnbj1.fds.api.mi-img.com/mi-mall/c66f98cff8649bd5ba722c2e8067c6ca.jpg) no-repeat center / contain;
-    }
-  }
-}
-</style>
-```
-## 2. 准备生成订单接口
-```javascript
-
-// 创建订单
-export const createOrderAPI = (data) => {
-  return request({
-    url: '/member/order',
-    method: 'POST',
-    data
-  })
-}
-```
-## 3. 调用接口携带id跳转路由
-```vue
-<script setup>
-import { createOrderAPI } from '@/apis/checkout'
-
-// 创建订单
-const createOrder = async () => {
-  const res = await createOrderAPI({
-    deliveryTimeType: 1,
-    payType: 1,
-    payChannel: 1,
-    buyerMessage: '',
-    goods: checkInfo.value.goods.map(item => {
-      return {
-        skuId: item.skuId,
-        count: item.count
-      }
-    }),
-    addressId: curAddress.value.id
-  })
-  const orderId = res.result.id
-  router.push({
-    path: '/pay',
-    query: {
-      id: orderId
-    }
-  })
-}
-
-</script>
-
-<template>
-    <!-- 提交订单 -->
-    <div class="submit">
-      <el-button @click="createOrder" type="primary" size="large">提交订单</el-button>
-    </div>
-</template>
-```
-
