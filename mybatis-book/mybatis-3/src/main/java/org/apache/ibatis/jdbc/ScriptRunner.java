@@ -200,19 +200,19 @@ public class ScriptRunner {
 
   private void handleLine(StringBuilder command, String line) throws SQLException {
     String trimmedLine = line.trim();
-    if (lineIsComment(trimmedLine)) {
+    if (lineIsComment(trimmedLine)) { //（1）调用lineIsComment()方法判断本行内容是否为注释，如果为注释内容，则打印注释内容。
       Matcher matcher = DELIMITER_PATTERN.matcher(trimmedLine);
       if (matcher.find()) {
         delimiter = matcher.group(5);
       }
       println(trimmedLine);
-    } else if (commandReadyToExecute(trimmedLine)) {
-      command.append(line.substring(0, line.lastIndexOf(delimiter)));
+    } else if (commandReadyToExecute(trimmedLine)) {  // （2）调用commandReadyToExecute()方法判断本行中是否包含分号。
+      command.append(line.substring(0, line.lastIndexOf(delimiter))); // （3）如果本行包含分号，则说明该行是一条完整SQL的结尾。需要截取分号之前的SQL内容，与前面读取到的不包含分号的行一起组成一条完整的SQL语句执行。
       command.append(LINE_SEPARATOR);
       println(command);
       executeStatement(command.toString());
       command.setLength(0);
-    } else if (trimmedLine.length() > 0) {
+    } else if (trimmedLine.length() > 0) {  //（4）若该行中不包含分号，则说明该条SQL语句未结束，追加本行内容到之前读取的内容中，继续读取下一行。
       command.append(line);
       command.append(LINE_SEPARATOR);
     }
