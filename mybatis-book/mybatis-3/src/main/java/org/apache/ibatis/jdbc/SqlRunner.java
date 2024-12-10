@@ -218,13 +218,19 @@ public class SqlRunner {
 
   private List<Map<String, Object>> getResults(ResultSet rs) throws SQLException {
     try {
+      // 返回的结果集列表
       List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+      // 列名
       List<String> columns = new ArrayList<String>();
+      // Jdbc类型与java类型转换器
       List<TypeHandler<?>> typeHandlers = new ArrayList<TypeHandler<?>>();
+
+      //1.获取 ResultSetMetaData 对象，通过 ResultSetMetaData 对象获取所有列名
       ResultSetMetaData rsmd = rs.getMetaData();
       for (int i = 0, n = rsmd.getColumnCount(); i < n; i++) {
         columns.add(rsmd.getColumnLabel(i + 1));
         try {
+          //2.获取列的JDBC类型，根据类型获取TypeHandler对象
           Class<?> type = Resources.classForName(rsmd.getColumnClassName(i + 1));
           TypeHandler<?> typeHandler = typeHandlerRegistry.getTypeHandler(type);
           if (typeHandler == null) {
@@ -235,6 +241,7 @@ public class SqlRunner {
           typeHandlers.add(typeHandlerRegistry.getTypeHandler(Object.class));
         }
       }
+
       while (rs.next()) {
         Map<String, Object> row = new HashMap<String, Object>();
         for (int i = 0, n = columns.size(); i < n; i++) {
